@@ -8,11 +8,15 @@ import com.intellij.mcpserver.annotations.McpTool
 import com.intellij.mcpserver.mcpFail
 import com.intellij.mcpserver.project
 import com.intellij.mcpserver.util.resolveInProject
-import com.intellij.openapi.application.writeAction
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.findOrCreateFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.io.IOException
 import kotlin.io.path.name
@@ -44,16 +48,21 @@ class CreateFileToolset : McpToolset {
 		for (file in files) {
 			val path = project.resolveInProject(file.path_in_project)
 			try {
-				writeAction {
-					val parent = VfsUtil.createDirectories(path.parent.pathString)
-					val existing = parent.findChild(path.name)
-					if (existing != null && !overwrite) {
-						mcpFail("File already exists: ${file.path_in_project}. Specify overwrite=true to overwrite it.")
+				// FileDocumentManager requires EDT, while writeAction {} runs on a background
+				// thread — saveDocument goes after the write command, as in the other toolsets.
+				withContext(Dispatchers.EDT) {
+					lateinit var document: Document
+					WriteCommandAction.runWriteCommandAction(project) {
+						val parent = VfsUtil.createDirectories(path.parent.pathString)
+						val existing = parent.findChild(path.name)
+						if (existing != null && !overwrite) {
+							mcpFail("File already exists: ${file.path_in_project}. Specify overwrite=true to overwrite it.")
+						}
+						val createdFile = parent.findOrCreateFile(path.name)
+						document = FileDocumentManager.getInstance().getDocument(createdFile)
+							?: mcpFail("Cannot get document for: ${file.path_in_project}")
+						document.setText(file.content)
 					}
-					val createdFile = parent.findOrCreateFile(path.name)
-					val document = FileDocumentManager.getInstance().getDocument(createdFile)
-						?: mcpFail("Cannot get document for: ${file.path_in_project}")
-					document.setText(file.content)
 					FileDocumentManager.getInstance().saveDocument(document)
 				}
 				results.add("Created ${file.path_in_project}")

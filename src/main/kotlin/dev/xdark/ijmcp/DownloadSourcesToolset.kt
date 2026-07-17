@@ -3,7 +3,6 @@
 package dev.xdark.ijmcp
 
 import com.intellij.codeInsight.AttachSourcesProvider
-import com.intellij.codeInsight.AttachSourcesProviderFilter
 import com.intellij.mcpserver.McpToolset
 import com.intellij.mcpserver.annotations.McpDescription
 import com.intellij.mcpserver.annotations.McpTool
@@ -145,7 +144,9 @@ class DownloadSourcesToolset : McpToolset {
 	): List<AttachSourcesProvider.AttachSourcesAction> {
 		val allActions = mutableListOf<AttachSourcesProvider.AttachSourcesAction>()
 		for (provider in ATTACH_SOURCES_EP.extensionList) {
-			if (!AttachSourcesProviderFilter.isProviderApplicable(provider, orderEntries, psiFile)) continue
+			// The third-party AttachSourcesProviderFilter pre-filter moved to the Workspace Model
+			// (Collection<LibraryEntity>) and no longer accepts LibraryOrderEntry, so it is dropped.
+			// The provider's own isApplicable still gates whether it runs for these entries.
 			if (!provider.isApplicable(orderEntries, psiFile)) continue
 			allActions.addAll(provider.getActions(orderEntries, psiFile))
 		}

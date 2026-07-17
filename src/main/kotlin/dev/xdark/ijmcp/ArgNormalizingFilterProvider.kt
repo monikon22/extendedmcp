@@ -1,10 +1,8 @@
 package dev.xdark.ijmcp
 
 import com.intellij.mcpserver.McpToolFilterProvider
-import com.intellij.mcpserver.McpToolFilterProvider.DisallowMcpTools
-import com.intellij.mcpserver.McpToolFilterProvider.McpToolFilter
 import com.intellij.mcpserver.McpToolFilterProvider.McpToolFilterContext
-import com.intellij.mcpserver.McpToolFilterProvider.McpToolFilterModification
+import com.intellij.mcpserver.McpToolInvocationMode
 import com.intellij.mcpserver.impl.McpServerService
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import kotlinx.coroutines.CoroutineScope
@@ -13,40 +11,25 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 class ArgNormalizingFilterProvider : McpToolFilterProvider {
-	override fun getFilters(
+	override fun applyFilters(
+		context: McpToolFilterContext,
 		clientInfo: Implementation?,
-		sessionOptions: McpServerService.McpSessionOptions?
-	): List<McpToolFilter> {
-		return listOf(ToolDisablingFilter, ArgNormalizingFilter)
+		sessionOptions: McpServerService.McpSessionOptions?,
+		invocationMode: McpToolInvocationMode,
+	) {
+		val disabled = ToolFilterState.getInstance().getDisabledSet()
+		if (disabled.isEmpty()) return
+		// enabled = false turns the tool off, routerOnly = null leaves that flag untouched.
+		context.updateState(false, null) { it.descriptor.name in disabled }
 	}
 
 	override fun getUpdates(
 		clientInfo: Implementation?,
 		scope: CoroutineScope,
-		sessionOptions: McpServerService.McpSessionOptions?
+		sessionOptions: McpServerService.McpSessionOptions?,
+		invocationMode: McpToolInvocationMode,
 	): Flow<Unit> {
 		return updateFlow.asSharedFlow()
-	}
-
-	private object ToolDisablingFilter : McpToolFilter {
-		override fun modify(context: McpToolFilterContext): McpToolFilterModification {
-			val disabled = ToolFilterState.getInstance().getDisabledSet()
-			val toDisallow = context.allowedTools.filter { it.descriptor.name in disabled }.toSet()
-			return DisallowMcpTools(toDisallow)
-		}
-	}
-
-	private object ArgNormalizingFilter : McpToolFilter {
-		private val normalizers =
-			listOf(UnknownParameterNormalizer(), StringEncodedJsonNormalizer(), SingleElementArrayNormalizer())
-
-		override fun modify(context: McpToolFilterContext): McpToolFilterModification {
-			val wrapped = context.allowedTools.map { ArgNormalizingMcpTool(it, normalizers) }.toSet()
-			return object : McpToolFilterModification {
-				override fun apply(context: McpToolFilterContext): McpToolFilterContext =
-					context.copy(allowedTools = wrapped)
-			}
-		}
 	}
 
 	companion object {
