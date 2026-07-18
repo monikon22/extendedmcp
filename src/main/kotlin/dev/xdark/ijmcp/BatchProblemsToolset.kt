@@ -7,7 +7,6 @@ import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.DaemonProgressIndicator
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.codeInsight.daemon.impl.HighlightingSessionImpl
-import com.intellij.codeInsight.multiverse.defaultContext
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.mcpserver.McpToolset
 import com.intellij.mcpserver.annotations.McpDescription
@@ -143,7 +142,7 @@ class BatchProblemsToolset : McpToolset {
 
 		jobToIndicator(currentCoroutineContext().job, daemonIndicator) {
 			HighlightingSessionImpl.runInsideHighlightingSession(
-				entry.psiFile, defaultContext(), null, range, false
+				entry.psiFile, null, range, false
 			) { session ->
 				(session as HighlightingSessionImpl).setMinimumSeverity(minSeverity)
 				val codeAnalyzer = DaemonCodeAnalyzer.getInstance(project) as DaemonCodeAnalyzerImpl

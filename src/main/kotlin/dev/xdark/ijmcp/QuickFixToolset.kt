@@ -8,7 +8,6 @@ import com.intellij.codeInsight.daemon.impl.DaemonProgressIndicator
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.codeInsight.daemon.impl.HighlightingSessionImpl
 import com.intellij.codeInsight.intention.IntentionAction
-import com.intellij.codeInsight.multiverse.defaultContext
 import com.intellij.mcpserver.McpToolset
 import com.intellij.mcpserver.annotations.McpDescription
 import com.intellij.mcpserver.annotations.McpTool
@@ -84,7 +83,6 @@ class QuickFixToolset : McpToolset {
 				jobToIndicator(coroutineContext.job, daemonIndicator) {
 					HighlightingSessionImpl.runInsideHighlightingSession(
 						psiFile,
-						defaultContext(),
 						null,
 						range,
 						false
